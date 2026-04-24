@@ -16,7 +16,7 @@ jobs:
     defaults:
       run:
         # All steps run from the project root so package imports resolve correctly
-        working-directory: fashionbroda_cj
+        working-directory: fashionbroda
 
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -31,7 +31,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.12"
           cache: "pip"
 
       - name: Install dependencies
@@ -40,28 +40,29 @@ jobs:
       # ── Part 1 — Update existing products ──────────────────────────────────
 
       #- name: Read DB
-      #  run: python3 fashionbroda_cj/scripts/read_db.py
+      #  run: python3 fashionbroda_cj/fashionbroda_cj/scripts/read_db.py
 
       - name: Validate Fashionbroda Yupoo album URLs
-        run: python3 fashionbroda_cj/scripts/validate.py
+        working-directory: fashionbroda_cj
+        run: scrapy crawl validate
 
       - name: Crawl existing albums
-        working-directory: fashionbroda_cj/fashionbroda_cj/spiders
+        working-directory: fashionbroda_cj
         run: scrapy crawl fashionbroda
 
       - name: Generate slugs
-        run: python3 fashionbroda_cj/scripts/slug.py
+        run: python3 fashionbroda_cj/fashionbroda_cj/scripts/slug.py
 
       - name: Download/verify images in R2
-        run: python3 fashionbroda_cj/scripts/r2_img_download.py
+        run: python3 fashionbroda_cj/fashionbroda_cj/scripts/r2_img_download.py
 
       - name: Compare and update DB
-        run: python3 fashionbroda_cj/scripts/compare_and_update.py
+        run: python3 fashionbroda_cj/fashionbroda_cj/scripts/compare_and_update.py
 
       # ── Part 2 — Discover and insert new products ───────────────────────────
 
       - name: Discover new albums
-        working-directory: fashionbroda_cj/fashionbroda_cj/spiders
+        working-directory: fashionbroda_cj
         run: scrapy crawl discover
 
       - name: Check for new albums
@@ -97,11 +98,11 @@ jobs:
 
       - name: Download new album images to R2
         if: steps.check_new_albums.outputs.new_albums == 'true'
-        run: python3 fashionbroda_cj/scripts/download_new_data.py
+        run: python3 fashionbroda_cj/fashionbroda_cj/scripts/download_new_data.py
 
       - name: Insert new albums into DB
         if: steps.check_new_albums.outputs.new_albums == 'true'
-        run: python3 fashionbroda_cj/scripts/supabase_upload_new_data.py
+        run: python3 fashionbroda_cj/fashionbroda_cj/scripts/supabase_upload_new_data.py
 
       # ── Notify on failure ───────────────────────────────────────────────────
 
