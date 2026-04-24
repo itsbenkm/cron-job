@@ -43,11 +43,11 @@ jobs:
       #  run: python3 fashionbroda_cj/fashionbroda_cj/scripts/read_db.py
 
       - name: Validate Fashionbroda Yupoo album URLs
-        working-directory: fashionbroda_cj
+        working-directory: fashionbroda/fashionbroda_cj
         run: scrapy crawl validate
 
       - name: Crawl existing albums
-        working-directory: fashionbroda_cj
+        working-directory: fashionbroda/fashionbroda_cj
         run: scrapy crawl fashionbroda
 
       - name: Generate slugs
@@ -62,7 +62,7 @@ jobs:
       # ── Part 2 — Discover and insert new products ───────────────────────────
 
       - name: Discover new albums
-        working-directory: fashionbroda_cj
+        working-directory: fashionbroda/fashionbroda_cj
         run: scrapy crawl discover
 
       - name: Check for new albums
