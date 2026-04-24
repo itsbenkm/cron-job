@@ -1,0 +1,16 @@
+# Ignore all files in data folder
+data/
+
+# Ignore all files in logs folder
+logs/
+
+# Ignore env files
+.env
+.env.*
+
+# Optional useful ignores
+*.log
+__pycache__/
+*.pyc
+.history/
+.vscode/
