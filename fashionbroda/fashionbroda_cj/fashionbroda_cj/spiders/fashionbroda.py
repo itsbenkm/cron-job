@@ -18,7 +18,7 @@ class FashionbrodaSpider(scrapy.Spider):
         "DOWNLOAD_DELAY": 0.15,
         "CONCURRENT_REQUESTS_PER_DOMAIN": 10,
         "FEEDS": {
-            "/home/b3n/Desktop/seller_cron_jobs/fashionbroda/fashionbroda_cj/fashionbroda_cj/data/album_data.json": {
+            "fashionbroda/fashionbroda_cj/fashionbroda_cj/data/album_data.json": {
                 "format": "json",
                 "encoding": "utf8",
                 "indent": 2,

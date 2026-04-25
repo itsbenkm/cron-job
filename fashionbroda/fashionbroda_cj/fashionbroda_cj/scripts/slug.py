@@ -31,7 +31,7 @@ def generate_slug(category: str, album_url: str) -> str:
 
 def main() -> None:
     # Keep the file-processing behavior opt-in so importing generate_slug does not run it.
-    json_file_path = "/home/b3n/Desktop/seller_cron_jobs/fashionbroda/fashionbroda_cj/fashionbroda_cj/data/album_data.json"
+    json_file_path = "fashionbroda/fashionbroda_cj/fashionbroda_cj/data/album_data.json"
 
     try:
         # Load scraped album data only when this script is run directly.
@@ -76,7 +76,7 @@ def main() -> None:
                 f"'{item.get('yupoo_album_url')}': {e}"
             )
 
-    output_path = "/home/b3n/Desktop/seller_cron_jobs/fashionbroda/fashionbroda_cj/fashionbroda_cj/data/slug.json"
+    output_path = "fashionbroda/fashionbroda_cj/fashionbroda_cj/data/slug.json"
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=2)

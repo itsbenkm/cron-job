@@ -259,13 +259,13 @@ def main():
     parser.add_argument(
         "input_json",
         nargs="?",
-        default="/home/b3n/Desktop/seller_cron_jobs/fashionbroda/fashionbroda_cj/fashionbroda_cj/data/slug.json",
+        default="fashionbroda/fashionbroda_cj/fashionbroda_cj/data/slug.json",
         help="Path to input products JSON file (default: cron job data dir)",
     )
     parser.add_argument(
         "output_json",
         nargs="?",
-        default="/home/b3n/Desktop/seller_cron_jobs/fashionbroda/fashionbroda_cj/fashionbroda_cj/data/transformed_products.json",
+        default="fashionbroda/fashionbroda_cj/fashionbroda_cj/data/transformed_products.json",
         help="Path to write transformed JSON output (default: cron job data dir)",
     )
     parser.add_argument(
