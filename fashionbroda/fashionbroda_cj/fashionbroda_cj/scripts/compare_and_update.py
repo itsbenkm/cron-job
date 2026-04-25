@@ -25,8 +25,8 @@ from fashionbroda_cj.scripts.read_db import read_clean_db, supabase
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
-DATA_DIR = "fashionbroda/fashionbroda_cj/fashionbroda_cj/data"
-LOGS_DIR = "fashionbroda/fashionbroda_cj/fashionbroda_cj/logs"
+DATA_DIR = "fashionbroda_cj/fashionbroda_cj/data"
+LOGS_DIR = "fashionbroda_cj/fashionbroda_cj/logs"
 TRANSFORMED_JSON = f"{DATA_DIR}/transformed_products.json"
 
 # ── Logging ───────────────────────────────────────────────────────────────────

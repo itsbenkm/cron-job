@@ -45,7 +45,7 @@ RETRY_DELAY = 2  # seconds between retries
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
-DATA_DIR = "fashionbroda/fashionbroda_cj/fashionbroda_cj/data"
+DATA_DIR = "fashionbroda_cj/fashionbroda_cj/data"
 INPUT_JSON = f"{DATA_DIR}/new_album_data.json"
 OUTPUT_JSON = f"{DATA_DIR}/new_album_data_processed.json"
 LOG_DIR = Path(__file__).resolve().parent.parent / "logs"

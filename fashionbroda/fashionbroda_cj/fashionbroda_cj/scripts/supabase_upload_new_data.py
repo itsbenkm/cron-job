@@ -34,8 +34,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 SELLER_ID = "68315cdb-5674-4305-b20f-99ab05c5c526"
 
-DATA_DIR = "fashionbroda/fashionbroda_cj/fashionbroda_cj/data"
-LOGS_DIR = "fashionbroda/fashionbroda_cj/fashionbroda_cj/logs"
+DATA_DIR = "fashionbroda_cj/fashionbroda_cj/data"
+LOGS_DIR = "fashionbroda_cj/fashionbroda_cj/logs"
 INPUT_JSON = f"{DATA_DIR}/new_album_data_processed.json"
 
 # ── Supabase client ────────────────────────────────────────────────────────────
