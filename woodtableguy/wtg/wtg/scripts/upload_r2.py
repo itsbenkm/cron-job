@@ -32,7 +32,7 @@ BUCKET_NAME = require_env("BUCKET_NAME")
 PUBLIC_BASE_URL = require_env("PUBLIC_BASE_URL")
 
 # ── File paths ────────────────────────────────────────────────────────────────
-DATA_DIR = "wtg/wtg/data"
+DATA_DIR = "woodtableguy/wtg/wtg/data"
 INPUT_JSON = f"{DATA_DIR}/album_data.json"
 OUTPUT_JSON = f"{DATA_DIR}/album_data_updated_cdn.json"
 CHECKPOINT_FILE = f"{DATA_DIR}/checkpoint.json"
