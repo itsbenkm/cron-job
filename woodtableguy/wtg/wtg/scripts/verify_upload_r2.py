@@ -8,6 +8,7 @@ from pathlib import Path
 import boto3
 import httpx
 from botocore.config import Config
+from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 
 # ── Load .env then validate required credentials ──────────────────────────────
@@ -77,7 +78,7 @@ def image_exists_in_r2(r2_key: str) -> bool:
         head = s3.head_object(Bucket=BUCKET_NAME, Key=r2_key)
         content_type = head.get("ContentType", "")
         return "jpeg" in content_type or "jpg" in content_type
-    except s3.exceptions.ClientError:
+    except ClientError:
         return False
     except Exception:
         return False
@@ -103,7 +104,8 @@ def download_and_upload(
     label: str,
 ) -> str | None:
     """
-    Download image from Yupoo and upload to R2 with retry logic.
+    Check if image exists in R2 first — if so skip.
+    Otherwise download from Yupoo and upload to R2 with retry logic.
     Returns the R2 public URL on success, None on failure.
     """
     r2_public_url = f"{PUBLIC_BASE_URL}/{r2_key}"
@@ -181,7 +183,10 @@ def process_product(product: dict, client: httpx.Client) -> tuple[dict, bool]:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--limit", type=int, default=None, help="Limit number of products to process"
+        "--limit",
+        type=int,
+        default=None,
+        help="Limit number of products to process (useful for local testing)",
     )
     args = parser.parse_args()
 
@@ -224,7 +229,7 @@ def main():
                 "product_cover_image": updated_product["product_cover_image"],
             }
 
-            # Write output JSON after every product
+            # Write output JSON after every product — never lose completed work
             with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
                 json.dump(output_data, f, indent=2, ensure_ascii=False)
 
