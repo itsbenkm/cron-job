@@ -1,0 +1,41 @@
+name: Upload Images to R2
+
+on:
+  workflow_dispatch: # manual trigger
+  schedule:
+    - cron: "0 2 * * *" # runs daily at 2am UTC — adjust as needed
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # 6 hour max
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install boto3 httpx python-dotenv
+
+      - name: Run upload script
+        env:
+          ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          PUBLIC_BASE_URL: ${{ secrets.R2_PUBLIC_BASE_URL }}
+        run: python wtg/wtg/scripts/upload_r2.py
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: album_data_updated_cdn
+          path: |
+            wtg/wtg/data/album_data_updated_cdn.json
+            wtg/wtg/data/checkpoint.json
+          retention-days: 7
