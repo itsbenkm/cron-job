@@ -1,10 +1,6 @@
 name: Fashionbroda Daily Cron Job
 
 on:
-  schedule:
-    # Set your desired time here in UTC — format: minute hour day month weekday
-    # Example below runs at 2:00 AM UTC daily — change to your preferred time
-    - cron: "0 2 * * *"
   # Allows you to trigger the workflow manually from the GitHub Actions tab
   workflow_dispatch:
 

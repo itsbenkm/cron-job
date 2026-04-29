@@ -17,45 +17,50 @@ export interface Env {
 }
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
-		try {
-			let totalDeleted = 0;
-			let cursor: string | undefined = undefined;
+		const url = new URL(request.url);
 
-			while (true) {
-				// List up to 1000 objects per page
-				const listed = await env.wtg.list({
-					limit: 1000,
-					cursor: cursor,
-				});
+		// Everything after the leading slash is the R2 key
+		// e.g. /products/nike/some-slug/images/01.jpg
+		const r2Key = url.pathname.slice(1);
 
-				const keys = listed.objects.map((obj: R2Object) => obj.key);
+		if (!r2Key) {
+			return new Response('Missing R2 key in path', { status: 400 });
+		}
 
-				if (keys.length === 0) break;
+		// ── HEAD — check if object exists and return its content-type ────────────
+		if (request.method === 'HEAD') {
+			const object = await env.wtg.head(r2Key);
+			if (!object) {
+				return new Response(null, { status: 404 });
+			}
+			return new Response(null, {
+				status: 200,
+				headers: {
+					'Content-Type': object.httpMetadata?.contentType ?? 'application/octet-stream',
+					'Content-Length': String(object.size),
+				},
+			});
+		}
 
-				// Batch delete all keys in this page
-				await env.wtg.delete(keys);
-				totalDeleted += keys.length;
+		// ── PUT — upload JPEG bytes to R2 ────────────────────────────────────────
+		if (request.method === 'PUT') {
+			const contentType = request.headers.get('Content-Type') ?? 'image/jpeg';
+			const body = await request.arrayBuffer();
 
-				if (listed.truncated) {
-					cursor = listed.cursor;
-				} else {
-					break;
-				}
+			if (!body || body.byteLength === 0) {
+				return new Response('Empty body', { status: 400 });
 			}
 
-			return Response.json({
-				success: true,
-				message: `Bucket wiped successfully`,
-				total_deleted: totalDeleted,
+			await env.wtg.put(r2Key, body, {
+				httpMetadata: { contentType },
 			});
-		} catch (error) {
-			return Response.json(
-				{
-					success: false,
-					error: error instanceof Error ? error.message : String(error),
-				},
-				{ status: 500 },
-			);
+
+			return new Response(JSON.stringify({ ok: true, key: r2Key }), {
+				status: 201,
+				headers: { 'Content-Type': 'application/json' },
+			});
 		}
+
+		return new Response('Method not allowed', { status: 405 });
 	},
 };

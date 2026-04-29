@@ -1,8 +1,6 @@
 # Ignore all files in data folder
 data/
-# Allow album_data.json to be tracked
-!woodtableguy/wtg/wtg/data/
-!woodtableguy/wtg/wtg/data/album_data.json
+
 # Ignore all files in logs folder
 logs/
 
