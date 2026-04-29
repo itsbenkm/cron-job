@@ -6,7 +6,7 @@ on:
 jobs:
   upload:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -26,5 +26,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: album_data_updated_cdn
-          path: woodtableguy/wtg/wtg/data/album_data_updated_cdn.json
+          path: woodtableguy/wtg/wtg/data2/album_data_updated_cdn.json
           retention-days: 7
