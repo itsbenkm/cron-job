@@ -1,5 +1,6 @@
 # Ignore all files in data folder
 data/
+data2/
 
 # Ignore all files in logs folder
 logs/

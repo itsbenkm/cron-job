@@ -1,30 +1,91 @@
-name: WTG Upload Images to R2
+name: Woodtableguy Cron Job
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 15 * * *"
 
 jobs:
-  upload:
+  woodtableguy-pipeline:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PYTHONUNBUFFERED: "1"
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.2
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.6.0
         with:
-          python-version: "3.11"
+          python-version: "3.12"
+          cache: "pip"
 
       - name: Install dependencies
-        run: pip install requests Pillow
+        run: pip install -r woodtableguy/requirements.txt
 
-      - name: Run upload script
-        run: python woodtableguy/wtg/wtg/scripts/upload_r2.py
+      - name: Validate existing album URLs
+        working-directory: woodtableguy/wtg
+        run: scrapy crawl validate
 
-      - name: Upload output artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: album_data_updated_cdn
-          path: woodtableguy/wtg/wtg/data2/album_data_updated_cdn.json
-          retention-days: 7
+      - name: Crawl existing albums
+        working-directory: woodtableguy/wtg
+        run: scrapy crawl woodtableguy
+
+      - name: Download and verify existing images in R2
+        run: python3 woodtableguy/wtg/wtg/scripts/upload_r2.py
+
+      - name: Compare existing albums and update DB
+        run: python3 woodtableguy/wtg/wtg/scripts/compare_and_update.py
+
+      - name: Discover new albums
+        working-directory: woodtableguy/wtg
+        run: scrapy crawl discover
+
+      - name: Check for new albums
+        id: check_new_albums
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("woodtableguy/wtg/wtg/data2/new_album_data.json")
+          if not path.exists():
+            print("No new_album_data.json found")
+            with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("new_albums=false\n")
+            raise SystemExit(0)
+
+          with path.open("r", encoding="utf-8") as file:
+            data = json.load(file)
+
+          count = len(data) if isinstance(data, list) else len(data.values())
+          print(f"Found {count} new albums")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            output.write(f"new_albums={'true' if count > 0 else 'false'}\n")
+          PYEOF
+
+      - name: Stop pipeline if no new albums were found
+        if: steps.check_new_albums.outputs.new_albums == 'false'
+        run: |
+          echo "No new albums discovered. Part 2 ends here."
+
+      - name: Download new album images to R2
+        if: steps.check_new_albums.outputs.new_albums == 'true'
+        run: python3 woodtableguy/wtg/wtg/scripts/download_new_data.py
+
+      - name: Upload new albums to Supabase
+        if: steps.check_new_albums.outputs.new_albums == 'true'
+        run: python3 woodtableguy/wtg/wtg/scripts/supabase_upload_new_data.py
+
+      - name: Pipeline failed
+        if: failure()
+        run: |
+          echo "Pipeline failed at step: ${{ github.job }}"
+          echo "Check the logs above for details"

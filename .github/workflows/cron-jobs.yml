@@ -3,6 +3,8 @@ name: Fashionbroda Daily Cron Job
 on:
   # Allows you to trigger the workflow manually from the GitHub Actions tab
   workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *" # Runs every day at 2:00 AM UTC
 
 jobs:
   fashionbroda-pipeline:

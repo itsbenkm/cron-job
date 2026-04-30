@@ -36,7 +36,7 @@ YUPOO_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-MAX_WORKERS = 4
+MAX_WORKERS = 20
 RETRY_LIMIT = 3
 RETRY_DELAY = 2
 

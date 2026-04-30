@@ -92,7 +92,6 @@ def read_clean_db():
                 yupoo_album_url,
                 product_cover_image,
                 product_image_urls,
-                size_chart_image_urls,
                 updated_at,
                 woodtableguy_product_data (
                     price,

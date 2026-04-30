@@ -139,7 +139,7 @@ class WoodtableguySpider(scrapy.Spider):
         super().__init__(*args, **kwargs)
         self.output_data = {}
         self.output_path = (
-            Path(__file__).resolve().parent.parent / "data" / "album_data.json"
+            Path(__file__).resolve().parent.parent / "data2" / "album_data.json"
         )
 
     def closed(self, reason):
@@ -215,34 +215,55 @@ class WoodtableguySpider(scrapy.Spider):
         slug = generate_slug(header, category=brand, price=price)
 
         # 4. Extract Sizes
-        all_subtitle_text = " ".join(
-            response.css(
-                "div.showalbumheader__gallerysubtitle.htmlwrap__main ::text"
-            ).getall()
+        texts = response.css(
+            "div.showalbumheader__gallerysubtitle.htmlwrap__main ::text"
+        ).getall()
+
+        # Clean text nodes (remove empty + whitespace junk)
+        cleaned = [t.strip() for t in texts if t.strip()]
+
+        # Try to isolate the line that actually contains size info
+        size_line = next(
+            (t for t in cleaned if re.search(r"(?i)(sizes?|尺[寸码]|规格)", t)),
+            "",
         )
+
+        # Fallback to full text if no labeled size line found
+        all_subtitle_text = size_line if size_line else " ".join(cleaned)
+
+        # Normalize unicode/fullwidth characters
         all_subtitle_text = normalize_fullwidth(all_subtitle_text)
 
-        # Match explicit size labels: "size:", "sizes:", "尺寸:", "尺码:", "规格:"
-        # Capture everything after the label on that line
+        # Fix broken decimals like "37 .5" -> "37.5"
+        all_subtitle_text = re.sub(r"(\d)\s*\.\s*(\d)", r"\1.\2", all_subtitle_text)
+
+        size_data = None
+
+        # --- Primary extraction (label-based) ---
         match = re.search(
-            r"(?i)(?:sizes?|尺[寸码]|规格)\s*[:：]\s*([A-Z0-9][\w\s]*)",
+            r"(?i)(?:sizes?|尺[寸码]|规格)\s*[:：]?\s*(.+)",
             all_subtitle_text,
         )
+
         if match:
-            # Extract both numeric sizes (36 37 38) and letter sizes (XS S M L XL XXL 2XL)
-            size_data = re.findall(
-                r"\b(?:\d+XL|\d+L?|XXL|XL|XS|SM?|ML?|L)\b",
+            extracted = re.findall(
+                r"\b\d+(?:\.\d+)?\b|\b(?:XS|S|M|L|XL|XXL|\d+XL)\b",
                 match.group(1),
                 re.IGNORECASE,
             )
-            size_data = [s.upper() for s in size_data] if size_data else None
-        else:
-            # Fallback: detect a run of 2+ shoe sizes (numbers in range 34-50)
-            fallback = re.search(
-                r"\b((?:(?:3[4-9]|4[0-9]|50)\s+){2,}(?:3[4-9]|4[0-9]|50))\b",
+            size_data = [s.upper() for s in extracted] if extracted else None
+
+        # --- Fallback (pattern-based detection) ---
+        if not size_data:
+            fallback = re.findall(
+                r"\b(?:3[4-9]|4[0-9]|50)(?:\.\d+)?\b",
                 all_subtitle_text,
             )
-            size_data = re.findall(r"\d+", fallback.group(1)) if fallback else None
+            size_data = fallback if len(fallback) >= 2 else None
+
+        # --- Deduplicate ---
+        if size_data:
+            size_data = list(dict.fromkeys(size_data))
 
         product_data = {
             "price": price,
