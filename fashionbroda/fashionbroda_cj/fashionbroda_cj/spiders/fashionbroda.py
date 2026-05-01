@@ -4,11 +4,60 @@ This spider will be used to check for any changes in album data and to check for
 
 """
 
+import json
 import re
+from typing import Optional
 
 import scrapy
 
 from fashionbroda_cj.scripts.read_db import read_db
+
+# *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+def get_product_image_cover(response) -> Optional[str]:
+    # 1. JSON-LD first (best)
+    for script in response.css('script[type="application/ld+json"]::text').getall():
+        try:
+            data = json.loads(script)
+
+            for item in data.get("@graph", [data]):
+                if item.get("@type") == "ImageGallery":
+                    images = item.get("image", [])
+
+                    if isinstance(images, str) and images.strip():
+                        return response.urljoin(images.strip())
+
+                    if isinstance(images, list) and images:
+                        first = images[0]
+
+                        if isinstance(first, str):
+                            return response.urljoin(first.strip())
+
+                        if isinstance(first, dict):
+                            url = first.get("url")
+                            if url:
+                                return response.urljoin(url.strip())
+
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            continue
+
+    # 2. og:image
+    og = response.css('meta[property="og:image"]::attr(content)').get()
+
+    if og:
+        return response.urljoin(og.strip())
+
+    # 3. DOM fallback
+    src = response.css(".showalbumheader__gallerycover img::attr(src)").get()
+
+    if src:
+        return response.urljoin(src.strip())
+
+    return None
+
+
+# *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 class FashionbrodaSpider(scrapy.Spider):
@@ -41,7 +90,8 @@ class FashionbrodaSpider(scrapy.Spider):
             )
 
     def parse_album(self, response):
-        product_cover_image = response.css("img.autocover::attr(data-origin-src)").get()
+        product_cover_image = get_product_image_cover(response)
+
         if not product_cover_image:
             product_cover_image = None
         # Get individual product image links from the album page
