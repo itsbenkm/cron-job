@@ -104,6 +104,7 @@ class WoodtableguySpider(scrapy.Spider):
     custom_settings = {
         "DOWNLOAD_DELAY": 0.15,
         "CONCURRENT_REQUESTS_PER_DOMAIN": 10,
+        "USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     }
 
     def __init__(self, *args, **kwargs):
@@ -126,11 +127,10 @@ class WoodtableguySpider(scrapy.Spider):
                 callback=self.parse_album,
                 meta={
                     "product_id": product["id"],
-                    "brand": product[
-                        "brands"
-                    ],  # note: singular key "brand" for clarity
+                    "brand": product["brands"],  # note: singular key "brand" for clarity
                     "yupoo_album_url": product["yupoo_album_url"],
                 },
+                dont_filter=True,  # Ensure every product ID gets its data updated even if they share URLs
             )
 
     # *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

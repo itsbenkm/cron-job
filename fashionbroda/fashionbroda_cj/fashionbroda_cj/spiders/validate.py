@@ -30,8 +30,9 @@ class ValidateSpider(scrapy.Spider):
     handle_httpstatus_list = [404]
     # start_urls = ["https://fashionbroda.x.yupoo.com/categories"]
     custom_settings = {
-        "DOWNLOAD_DELAY": 0.15,  # Adjust the delay as needed
-        "CONCURRENT_REQUESTS_PER_DOMAIN": 10,  # Limit concurrent requests to the same domain
+        "DOWNLOAD_DELAY": 0.15,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 10,
+        "USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     }
 
     async def start(self):
@@ -41,16 +42,17 @@ class ValidateSpider(scrapy.Spider):
             if not product.get("yupoo_album_url"):
                 continue
             yield scrapy.Request(
-                # we pass the url we want the spider to crawl
                 url=product["yupoo_album_url"],
                 callback=self.validate_album,
                 meta={"product_id": product["id"]},
+                dont_filter=True,  # Ensure we check every product even if they share URLs
             )
 
     def validate_album(self, response):
         product_id = response.meta["product_id"]
-        if response.status == 404:  # 404 Not Found
-            # Add validation logic here
+        # 404 means the album is definitely gone.
+        # We also check if we were redirected to the home page (a common 'soft 404' on Yupoo)
+        if response.status == 404 or response.url.strip("/") == f"https://{self.allowed_domains[0]}":
             self.removed_albums.append(product_id)
 
     # *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
