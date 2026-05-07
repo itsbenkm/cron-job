@@ -11,11 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360 # 6 hour timeout to account for large image migrations
 
-    defaults:
-      run:
-        # All steps run from the project root so package imports resolve correctly
-        working-directory: fashionbroda
-
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -34,42 +29,43 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r fashionbroda/requirements.txt
 
       # ── Part 1 — Update existing products ──────────────────────────────────
 
-      #- name: Read DB
-      #  run: python3 fashionbroda_cj/fashionbroda_cj/scripts/read_db.py
-
       - name: Validate Fashionbroda Yupoo album URLs
-        working-directory: fashionbroda/fashionbroda_cj
-        run: scrapy crawl validate
+        run: |
+          cd fashionbroda/fashionbroda_cj
+          scrapy crawl validate
 
       - name: Crawl existing albums
-        working-directory: fashionbroda/fashionbroda_cj
-        run: scrapy crawl fashionbroda
+        run: |
+          cd fashionbroda/fashionbroda_cj
+          scrapy crawl fashionbroda
 
       - name: Generate slugs
-        run: python3 fashionbroda_cj/fashionbroda_cj/scripts/slug.py
+        run: python3 fashionbroda/fashionbroda_cj/fashionbroda_cj/scripts/slug.py
 
       - name: Download/verify images in R2
-        run: python3 fashionbroda_cj/fashionbroda_cj/scripts/r2_img_download.py
+        run: python3 fashionbroda/fashionbroda_cj/fashionbroda_cj/scripts/r2_img_download.py
 
       - name: Compare and update DB
-        run: python3 fashionbroda_cj/fashionbroda_cj/scripts/compare_and_update.py
+        run: python3 fashionbroda/fashionbroda_cj/fashionbroda_cj/scripts/compare_and_update.py
 
       # ── Part 2 — Discover and insert new products ───────────────────────────
 
       - name: Discover new albums
-        working-directory: fashionbroda/fashionbroda_cj
-        run: scrapy crawl discover
+        run: |
+          cd fashionbroda/fashionbroda_cj
+          scrapy crawl discover
 
       - name: Check for new albums
         id: check_new_albums
         run: |
           python3 - << 'PYEOF'
           import json, os, sys
-          path = "fashionbroda_cj/fashionbroda_cj/data/new_album_data.json"
+          # This inline script also needs the repo-relative path
+          path = "fashionbroda/fashionbroda_cj/fashionbroda_cj/data/new_album_data.json"
           try:
               with open(path, "r") as f:
                   data = json.load(f)
@@ -77,14 +73,13 @@ jobs:
               print(f"Found {count} new albums")
               if count == 0:
                   print("new_albums=false")
-                  # Write to GitHub Actions output so subsequent steps can check
                   with open(os.environ["GITHUB_OUTPUT"], "a") as out:
                       out.write("new_albums=false\n")
               else:
                   with open(os.environ["GITHUB_OUTPUT"], "a") as out:
                       out.write("new_albums=true\n")
           except FileNotFoundError:
-              print("new_album_data.json not found — treating as no new albums")
+              print(f"File not found: {path} — treating as no new albums")
               with open(os.environ["GITHUB_OUTPUT"], "a") as out:
                   out.write("new_albums=false\n")
           PYEOF
@@ -97,11 +92,11 @@ jobs:
 
       - name: Download new album images to R2
         if: steps.check_new_albums.outputs.new_albums == 'true'
-        run: python3 fashionbroda_cj/fashionbroda_cj/scripts/download_new_data.py
+        run: python3 fashionbroda/fashionbroda_cj/fashionbroda_cj/scripts/download_new_data.py
 
       - name: Insert new albums into DB
         if: steps.check_new_albums.outputs.new_albums == 'true'
-        run: python3 fashionbroda_cj/fashionbroda_cj/scripts/supabase_upload_new_data.py
+        run: python3 fashionbroda/fashionbroda_cj/fashionbroda_cj/scripts/supabase_upload_new_data.py
 
       # ── Notify on failure ───────────────────────────────────────────────────
 

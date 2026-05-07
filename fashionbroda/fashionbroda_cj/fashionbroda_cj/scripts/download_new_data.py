@@ -25,6 +25,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
 
+# Allow running this script from anywhere by adding the project root to sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fashionbroda_cj.scripts.paths import get_data_path, LOGS_DIR
+
 import requests
 from dotenv import load_dotenv
 from PIL import Image
@@ -62,10 +67,7 @@ RETRY_DELAY = 2  # seconds between retries
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
-DATA_DIR = "fashionbroda_cj/fashionbroda_cj/data"
-INPUT_JSON = f"{DATA_DIR}/new_album_data.json"
-OUTPUT_JSON = f"{DATA_DIR}/new_album_data_processed.json"
-LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+LOG_DIR = LOGS_DIR
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -276,13 +278,13 @@ def main():
     parser.add_argument(
         "input_json",
         nargs="?",
-        default=INPUT_JSON,
+        default=get_data_path("new_album_data.json"),
         help="Path to new_album_data.json (default: cron job data dir)",
     )
     parser.add_argument(
         "output_json",
         nargs="?",
-        default=OUTPUT_JSON,
+        default=get_data_path("new_album_data_processed.json"),
         help="Path to write processed output JSON (default: cron job data dir)",
     )
     parser.add_argument(

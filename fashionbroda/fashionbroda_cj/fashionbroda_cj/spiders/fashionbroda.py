@@ -11,6 +11,7 @@ from typing import Optional
 import scrapy
 
 from fashionbroda_cj.scripts.read_db import read_db
+from fashionbroda_cj.scripts.paths import get_data_path
 
 # *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -67,7 +68,7 @@ class FashionbrodaSpider(scrapy.Spider):
         "DOWNLOAD_DELAY": 0.15,
         "CONCURRENT_REQUESTS_PER_DOMAIN": 10,
         "FEEDS": {
-            "data/album_data2.json": {
+            get_data_path("album_data.json"): {
                 "format": "json",
                 "encoding": "utf8",
                 "indent": 2,

@@ -1,14 +1,14 @@
 import sys
 from pathlib import Path
 
+# Allow running this script from anywhere by adding the project root to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import scrapy
 
 from wtg.scripts.read_db import album_urls
 from wtg.spiders.woodtableguy import WoodtableguySpider, generate_slug
-
-DATA_DIR = Path(__file__).resolve().parent.parent / "data2"
+from wtg.scripts.paths import get_data_path
 
 
 class DiscoverSpider(scrapy.Spider):
@@ -20,7 +20,7 @@ class DiscoverSpider(scrapy.Spider):
         "CONCURRENT_REQUESTS": 10,
         "DOWNLOAD_DELAY": 0.2,
         "FEEDS": {
-            f"{DATA_DIR}/new_album_data.json": {
+            get_data_path("new_album_data.json"): {
                 "format": "json",
                 "encoding": "utf8",
                 "indent": 2,

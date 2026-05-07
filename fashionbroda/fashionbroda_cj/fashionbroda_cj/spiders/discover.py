@@ -12,6 +12,7 @@ import scrapy
 from fashionbroda_cj.scripts.read_db import album_urls
 from fashionbroda_cj.scripts.slug import generate_slug
 from fashionbroda_cj.spiders.fashionbroda import FashionbrodaSpider
+from fashionbroda_cj.scripts.paths import get_data_path
 
 
 class DiscoverSpider(scrapy.Spider):
@@ -21,7 +22,7 @@ class DiscoverSpider(scrapy.Spider):
         "CONCURRENT_REQUESTS": 10,
         "DOWNLOAD_DELAY": 0.2,
         "FEEDS": {
-            "data/new_album_data.json": {
+            get_data_path("new_album_data.json"): {
                 "format": "json",
                 "encoding": "utf8",
                 "indent": 2,

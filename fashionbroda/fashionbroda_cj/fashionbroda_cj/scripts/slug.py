@@ -6,6 +6,13 @@ It takes in the json data from fashionbroda.py and creates slugs for the albums 
 import hashlib
 import json
 import re
+import sys
+from pathlib import Path
+
+# Allow running this script from anywhere by adding the project root to sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fashionbroda_cj.scripts.paths import get_data_path
 
 
 def normalize_category(category: str) -> str:
@@ -31,7 +38,7 @@ def generate_slug(category: str, album_url: str) -> str:
 
 def main() -> None:
     # Keep the file-processing behavior opt-in so importing generate_slug does not run it.
-    json_file_path = "fashionbroda_cj/fashionbroda_cj/data/album_data.json"
+    json_file_path = get_data_path("album_data.json")
 
     try:
         # Load scraped album data only when this script is run directly.
@@ -76,7 +83,7 @@ def main() -> None:
                 f"'{item.get('yupoo_album_url')}': {e}"
             )
 
-    output_path = "fashionbroda_cj/fashionbroda_cj/data/slug.json"
+    output_path = get_data_path("slug.json")
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=2)

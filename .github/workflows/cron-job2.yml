@@ -30,12 +30,14 @@ jobs:
         run: pip install -r woodtableguy/requirements.txt
 
       - name: Validate existing album URLs
-        working-directory: woodtableguy/wtg
-        run: scrapy crawl validate
+        run: |
+          cd woodtableguy/wtg
+          scrapy crawl validate
 
       - name: Crawl existing albums
-        working-directory: woodtableguy/wtg
-        run: scrapy crawl woodtableguy
+        run: |
+          cd woodtableguy/wtg
+          scrapy crawl woodtableguy
 
       - name: Download and verify existing images in R2
         run: python3 woodtableguy/wtg/wtg/scripts/upload_r2.py
@@ -44,23 +46,24 @@ jobs:
         run: python3 woodtableguy/wtg/wtg/scripts/compare_and_update.py
 
       - name: Discover new albums
-        working-directory: woodtableguy/wtg
-        run: scrapy crawl discover
+        run: |
+          cd woodtableguy/wtg
+          scrapy crawl discover
 
       - name: Check for new albums
         id: check_new_albums
         run: |
           python3 - <<'PYEOF'
-          import json
-          import os
+          import json, os, sys
           from pathlib import Path
 
+          # Repo-relative path
           path = Path("woodtableguy/wtg/wtg/data2/new_album_data.json")
           if not path.exists():
-            print("No new_album_data.json found")
+            print(f"No file found at {path}")
             with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write("new_albums=false\n")
-            raise SystemExit(0)
+            sys.exit(0)
 
           with path.open("r", encoding="utf-8") as file:
             data = json.load(file)

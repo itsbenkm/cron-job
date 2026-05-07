@@ -28,6 +28,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
 
+# Allow running this script from anywhere by adding the project root to sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fashionbroda_cj.scripts.paths import get_data_path, LOGS_DIR
+
 import requests
 from dotenv import load_dotenv
 from PIL import Image
@@ -63,7 +68,7 @@ MAX_WORKERS = 4  # parallel product workers
 RETRY_LIMIT = 3
 RETRY_DELAY = 2  # seconds between retries
 
-LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+LOG_DIR = LOGS_DIR
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -275,13 +280,13 @@ def main():
     parser.add_argument(
         "input_json",
         nargs="?",
-        default="fashionbroda_cj/fashionbroda_cj/data/slug.json",
+        default=get_data_path("slug.json"),
         help="Path to input products JSON file (default: cron job data dir)",
     )
     parser.add_argument(
         "output_json",
         nargs="?",
-        default="fashionbroda_cj/fashionbroda_cj/data/transformed_products.json",
+        default=get_data_path("transformed_products.json"),
         help="Path to write transformed JSON output (default: cron job data dir)",
     )
     parser.add_argument(

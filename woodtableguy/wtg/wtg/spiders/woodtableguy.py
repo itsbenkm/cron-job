@@ -12,6 +12,7 @@ from typing import Optional
 import scrapy
 
 from wtg.scripts.read_db import read_db
+from wtg.scripts.paths import get_data_path
 
 # *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -108,9 +109,7 @@ class WoodtableguySpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.output_data = {}
-        self.output_path = (
-            Path(__file__).resolve().parent.parent / "data2" / "album_data.json"
-        )
+        self.output_path = Path(get_data_path("album_data.json"))
 
     def closed(self, reason):
         self.output_path.parent.mkdir(parents=True, exist_ok=True)

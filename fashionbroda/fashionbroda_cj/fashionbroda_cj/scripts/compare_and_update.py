@@ -21,12 +21,14 @@ from pathlib import Path
 # by adding the project root (fashionbroda_cj/) to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from fashionbroda_cj.scripts.paths import DATA_DIR as SHARED_DATA_DIR, LOGS_DIR as SHARED_LOGS_DIR
+
 from fashionbroda_cj.scripts.read_db import read_clean_db, supabase
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
-DATA_DIR = "fashionbroda_cj/fashionbroda_cj/data"
-LOGS_DIR = "fashionbroda_cj/fashionbroda_cj/logs"
+DATA_DIR = str(SHARED_DATA_DIR)
+LOGS_DIR = str(SHARED_LOGS_DIR)
 TRANSFORMED_JSON = f"{DATA_DIR}/transformed_products.json"
 
 # ── Logging ───────────────────────────────────────────────────────────────────

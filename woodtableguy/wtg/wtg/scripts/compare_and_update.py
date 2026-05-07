@@ -16,15 +16,16 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Allow running this script from anywhere by adding the project root to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from wtg.scripts.read_db import read_clean_db, supabase
+from wtg.scripts.paths import get_data_path, LOGS_DIR as SHARED_LOGS_DIR
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data2"
-LOGS_DIR = Path(__file__).resolve().parent.parent / "logs"
-TRANSFORMED_JSON = DATA_DIR / "album_data_updated_cdn.json"
+LOGS_DIR = SHARED_LOGS_DIR
+TRANSFORMED_JSON = get_data_path("album_data_updated_cdn.json")
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 

@@ -5,19 +5,19 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from dotenv import load_dotenv
-from supabase import Client, create_client
-
 # ── Path fix — allows running from scripts/ or anywhere ───────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from dotenv import load_dotenv
+from supabase import Client, create_client
+from wtg.scripts.paths import get_data_path, LOGS_DIR as SHARED_LOGS_DIR
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 SELLER_ID = "16bd8883-cd2f-45aa-ac85-686b66e06791"
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data2"
-LOGS_DIR = Path(__file__).resolve().parent.parent / "logs"
-INPUT_JSON = f"{DATA_DIR}/new_album_data_updated_cdn.json"
+LOGS_DIR = str(SHARED_LOGS_DIR)
+INPUT_JSON = get_data_path("new_album_data_updated_cdn.json")
 
 # ── Supabase client ────────────────────────────────────────────────────────────
 

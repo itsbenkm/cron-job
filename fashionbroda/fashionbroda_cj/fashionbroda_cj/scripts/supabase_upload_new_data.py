@@ -24,19 +24,20 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from dotenv import load_dotenv
-from supabase import Client, create_client
-
 # ── Path fix — allows running from scripts/ or anywhere ───────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from fashionbroda_cj.scripts.paths import get_data_path, LOGS_DIR as SHARED_LOGS_DIR
+
+from dotenv import load_dotenv
+from supabase import Client, create_client
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 SELLER_ID = "68315cdb-5674-4305-b20f-99ab05c5c526"
 
-DATA_DIR = "fashionbroda_cj/fashionbroda_cj/data"
-LOGS_DIR = "fashionbroda_cj/fashionbroda_cj/logs"
-INPUT_JSON = f"{DATA_DIR}/new_album_data_processed.json"
+LOGS_DIR = str(SHARED_LOGS_DIR)
+INPUT_JSON = get_data_path("new_album_data_processed.json")
 
 # ── Supabase client ────────────────────────────────────────────────────────────
 
