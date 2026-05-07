@@ -18,6 +18,7 @@ It is going to be the 7th script to run in the cron job
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -25,12 +26,28 @@ from io import BytesIO
 from pathlib import Path
 
 import requests
+from dotenv import load_dotenv
 from PIL import Image
+
+# ── Load env ───────────────────────────────────────────────────────────────────
+# Works on local (reads .env file) and GitHub Actions (reads from secrets/env vars)
+
+load_dotenv()
+
+WORKER_AUTH_TOKEN = os.getenv("WORKER_AUTH_TOKEN")
+if not WORKER_AUTH_TOKEN:
+    raise EnvironmentError(
+        "WORKER_AUTH_TOKEN is not set. Add it to your .env file or GitHub Actions secrets."
+    )
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 WORKER_BASE_URL = "https://fbd.imageuploads.workers.dev"
 CDN_BASE_URL = "https://cdn.reps.cheap"
+
+WORKER_HEADERS = {
+    "X-Auth-Token": WORKER_AUTH_TOKEN,
+}
 
 YUPOO_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -71,7 +88,7 @@ def worker_head(r2_key: str) -> requests.Response | None:
     url = f"{WORKER_BASE_URL}/{r2_key}"
     for attempt in range(RETRY_LIMIT):
         try:
-            r = requests.head(url, timeout=30)
+            r = requests.head(url, headers=WORKER_HEADERS, timeout=30)
             return r
         except Exception as e:
             log.warning(f"HEAD {r2_key} attempt {attempt + 1} failed: {e}")
@@ -87,7 +104,7 @@ def worker_put(r2_key: str, image_bytes: bytes) -> bool:
             r = requests.put(
                 url,
                 data=image_bytes,
-                headers={"Content-Type": "image/jpeg"},
+                headers={**WORKER_HEADERS, "Content-Type": "image/jpeg"},
                 timeout=60,
             )
             if r.status_code in (200, 201, 204):
@@ -208,7 +225,6 @@ def process_album(album: dict) -> dict | None:
     # e.g. "Louis Vuitton" → products/louis-vuitton/louis-vuitton-abc123/
     prefix_product = f"products/{brand}/{slug}/product"
     prefix_size_chart = f"products/{brand}/{slug}/size-chart"
-    prefix_cover = f"products/{brand}/{slug}/cover"
 
     # ── Product images ─────────────────────────────────────────────
     product_cdn_urls = []
@@ -232,7 +248,7 @@ def process_album(album: dict) -> dict | None:
     cover_src = album.get("product_cover_image")
     cover_cdn_url = None
     if cover_src:
-        r2_key = f"{prefix_cover}/cover.jpg"
+        r2_key = f"products/{brand}/{slug}/cover.jpg"
         cover_cdn_url = f"{CDN_BASE_URL}/{r2_key}"
         ensure_jpeg_in_r2(r2_key, cover_src, album_url)
 

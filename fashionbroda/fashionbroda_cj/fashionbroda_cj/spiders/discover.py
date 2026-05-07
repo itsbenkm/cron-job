@@ -21,7 +21,7 @@ class DiscoverSpider(scrapy.Spider):
         "CONCURRENT_REQUESTS": 10,
         "DOWNLOAD_DELAY": 0.2,
         "FEEDS": {
-            "fashionbroda_cj/data/new_album_data.json": {
+            "data/new_album_data.json": {
                 "format": "json",
                 "encoding": "utf8",
                 "indent": 2,

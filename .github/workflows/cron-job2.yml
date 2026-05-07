@@ -13,6 +13,7 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      WORKER2_AUTH_TOKEN: ${{ secrets.WORKER2_AUTH_TOKEN }}
       PYTHONUNBUFFERED: "1"
 
     steps:

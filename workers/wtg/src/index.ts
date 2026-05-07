@@ -10,21 +10,79 @@
  *
  * Learn more at https://developers.cloudflare.com/workers/
  */
-
 export interface Env {
 	wtg: R2Bucket;
-	// AUTH_TOKEN: string; // uncomment if you add a secret via: wrangler secret put AUTH_TOKEN
+	AUTH_TOKEN: string;
 }
+
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
-		const url = new URL(request.url);
+		// ── Auth ──────────────────────────────────────────────────────
+		const token = request.headers.get('X-Auth-Token');
+		if (token !== env.AUTH_TOKEN) {
+			return new Response('Unauthorized', { status: 401 });
+		}
 
+		const url = new URL(request.url);
 		// Everything after the leading slash is the R2 key
 		// e.g. /products/nike/some-slug/images/01.jpg
-		const r2Key = url.pathname.slice(1);
+		const r2Key = decodeURIComponent(url.pathname.slice(1));
 
 		if (!r2Key) {
 			return new Response('Missing R2 key in path', { status: 400 });
+		}
+
+		// ── CLEANUP — one-time delete of ALL objects in the bucket ──
+		// Hit: DELETE /cleanup-delete-all
+		// Once done, remove this block and redeploy.
+		if (request.method === 'DELETE' && r2Key === 'cleanup-delete-all') {
+			const { readable, writable } = new TransformStream();
+			const writer = writable.getWriter();
+			const enc = new TextEncoder();
+
+			const write = async (line: string) => {
+				await writer.write(enc.encode(line + '\n'));
+			};
+
+			(async () => {
+				try {
+					let totalDeleted = 0;
+					let cursor: string | undefined = undefined;
+
+					await write('[start] scanning entire bucket...');
+
+					do {
+						const listed = await env.wtg.list({ cursor });
+
+						const toDelete = listed.objects.map((o) => o.key);
+
+						if (toDelete.length > 0) {
+							await env.wtg.delete(toDelete);
+							for (const k of toDelete) {
+								await write(`[deleted] ${k}`);
+							}
+							totalDeleted += toDelete.length;
+						}
+
+						cursor = listed.truncated ? listed.cursor : undefined;
+
+						if (cursor) {
+							await write(`[paging] fetching next page...`);
+						}
+					} while (cursor);
+
+					await write(`[done] total deleted: ${totalDeleted}`);
+				} catch (err: any) {
+					await write(`[error] ${err?.message ?? String(err)}`);
+				} finally {
+					await writer.close();
+				}
+			})();
+
+			return new Response(readable, {
+				status: 200,
+				headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+			});
 		}
 
 		// ── HEAD — check if object exists and return its content-type ────────────

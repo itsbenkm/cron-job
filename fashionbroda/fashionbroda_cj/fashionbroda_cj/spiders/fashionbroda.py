@@ -67,7 +67,7 @@ class FashionbrodaSpider(scrapy.Spider):
         "DOWNLOAD_DELAY": 0.15,
         "CONCURRENT_REQUESTS_PER_DOMAIN": 10,
         "FEEDS": {
-            "fashionbroda_cj/data/album_data.json": {
+            "data/album_data2.json": {
                 "format": "json",
                 "encoding": "utf8",
                 "indent": 2,

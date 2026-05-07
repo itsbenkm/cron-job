@@ -12,18 +12,16 @@
  */
 export interface Env {
 	fbd: R2Bucket;
-	// AUTH_TOKEN: string; // uncomment if you add a secret via: wrangler secret put AUTH_TOKEN
+	AUTH_TOKEN: string;
 }
-
-const CLEANUP_PREFIX = 'products/acne studios/';
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
-		// ── Optional auth (uncomment to enable) ──────────────────────
-		// const token = request.headers.get("X-Auth-Token");
-		// if (token !== env.AUTH_TOKEN) {
-		//   return new Response("Unauthorized", { status: 401 });
-		// }
+		// ── Auth ──────────────────────────────────────────────────────
+		const token = request.headers.get('X-Auth-Token');
+		if (token !== env.AUTH_TOKEN) {
+			return new Response('Unauthorized', { status: 401 });
+		}
 
 		const url = new URL(request.url);
 		const key = decodeURIComponent(url.pathname.slice(1));
@@ -32,33 +30,56 @@ export default {
 			return new Response('Missing key', { status: 400 });
 		}
 
-		// ── CLEANUP — one-time delete of "acne studios/" (with space) ──
-		// Hit: DELETE /cleanup-acne-studios
-		// Once done, remove this block and redeploy
-		if (request.method === 'DELETE' && key === 'cleanup-acne-studios') {
-			const deleted: string[] = [];
-			let cursor: string | undefined = undefined;
+		// ── CLEANUP — one-time delete of ALL objects in the bucket ──
+		// Hit: DELETE /cleanup-delete-all
+		// Once done, remove this block and redeploy.
+		if (request.method === 'DELETE' && key === 'cleanup-delete-all') {
+			const { readable, writable } = new TransformStream();
+			const writer = writable.getWriter();
+			const enc = new TextEncoder();
 
-			// R2 list() is paginated — loop until all objects are listed
-			do {
-				const listed = await env.fbd.list({
-					prefix: CLEANUP_PREFIX,
-					cursor,
-				});
+			const write = async (line: string) => {
+				await writer.write(enc.encode(line + '\n'));
+			};
 
-				const keys = listed.objects.map((o) => o.key);
+			(async () => {
+				try {
+					let totalDeleted = 0;
+					let cursor: string | undefined = undefined;
 
-				if (keys.length > 0) {
-					await env.fbd.delete(keys);
-					deleted.push(...keys);
+					await write('[start] scanning entire bucket...');
+
+					do {
+						const listed = await env.fbd.list({ cursor });
+
+						const toDelete = listed.objects.map((o) => o.key);
+
+						if (toDelete.length > 0) {
+							await env.fbd.delete(toDelete);
+							for (const k of toDelete) {
+								await write(`[deleted] ${k}`);
+							}
+							totalDeleted += toDelete.length;
+						}
+
+						cursor = listed.truncated ? listed.cursor : undefined;
+
+						if (cursor) {
+							await write(`[paging] fetching next page...`);
+						}
+					} while (cursor);
+
+					await write(`[done] total deleted: ${totalDeleted}`);
+				} catch (err: any) {
+					await write(`[error] ${err?.message ?? String(err)}`);
+				} finally {
+					await writer.close();
 				}
+			})();
 
-				cursor = listed.truncated ? listed.cursor : undefined;
-			} while (cursor);
-
-			return new Response(JSON.stringify({ ok: true, deleted_count: deleted.length, deleted }), {
+			return new Response(readable, {
 				status: 200,
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'text/plain; charset=utf-8' },
 			});
 		}
 

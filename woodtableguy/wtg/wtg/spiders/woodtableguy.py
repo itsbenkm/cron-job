@@ -3,10 +3,9 @@ This spider scrapes the albums that have been verified to exist by the validate 
 This spider will be used to check for any changes in album data and to check for new images, this will be used to update the existing info in the DB
 """
 
+import hashlib
 import json
 import re
-import unicodedata
-import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -80,47 +79,18 @@ def normalize_fullwidth(text: str) -> str:
 # *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-def fallback_slug(category: Optional[str] = None, price=None) -> str:
-    parts = []
-    if category:
-        cat = normalize_fullwidth(category)
-        cat = (
-            unicodedata.normalize("NFKD", cat).encode("ascii", "ignore").decode("utf-8")
-        )
-        cat = cat.lower()
-        cat = re.sub(r"[^a-z0-9\s-]", "", cat)
-        cat = re.sub(r"[\s-]+", "-", cat).strip("-")
-        if cat:
-            parts.append(cat)
-    if price is not None:
-        price_str = str(int(price)) if price == int(price) else str(price)
-        parts.append(price_str)
-    if parts:
-        return "-".join(parts)
-    # Last resort — never returns None
-    return "product-" + uuid.uuid4().hex[:8]
+def album_hash_from_url(album_url: str) -> str:
+    # keep hash format consistent with existing pipeline
+    return hashlib.sha1(album_url.encode("utf-8")).hexdigest()[:10]
 
 
-# *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-def generate_slug(
-    text: Optional[str], category: Optional[str] = None, price=None
-) -> str:
-    if text:
-        text = normalize_fullwidth(text)
-        text = (
-            unicodedata.normalize("NFKD", text)
-            .encode("ascii", "ignore")
-            .decode("utf-8")
-        )
-        slug = text.lower()
-        slug = re.sub(r"[^a-z0-9\s-]", "", slug)
-        slug = re.sub(r"[\s-]+", "-", slug).strip("-")
-        if slug and len(slug) >= 2:
-            return slug
-    # Empty or too short — fall back to category + price
-    return fallback_slug(category, price)
+def generate_slug(category: str, album_url: str) -> str:
+    brand = normalize_fullwidth(category)
+    if not brand:
+        raise ValueError("Missing category")
+    if not album_url:
+        raise ValueError("Missing album_url")
+    return f"{brand}-{album_hash_from_url(album_url)}"
 
 
 # *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -212,7 +182,7 @@ class WoodtableguySpider(scrapy.Spider):
             header = " ".join(header.split()).strip()
 
         # 3. Generate Slug (with fallback to brand + price)
-        slug = generate_slug(header, category=brand, price=price)
+        slug = generate_slug(header, yupoo_album_url)
 
         # 4. Extract Sizes
         texts = response.css(
