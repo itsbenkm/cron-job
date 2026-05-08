@@ -19,8 +19,9 @@ from pathlib import Path
 # Allow running this script from anywhere by adding the project root to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from wtg.scripts.paths import LOGS_DIR as SHARED_LOGS_DIR
+from wtg.scripts.paths import get_data_path
 from wtg.scripts.read_db import read_clean_db, supabase
-from wtg.scripts.paths import get_data_path, LOGS_DIR as SHARED_LOGS_DIR
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
@@ -73,12 +74,30 @@ def utc_now() -> str:
 
 def update_product(product_id: str, changes: dict) -> bool:
     try:
-        supabase.table("woodtableguy_products").update(
-            {**changes, "updated_at": utc_now()}
-        ).eq("id", product_id).execute()
+        # Verify the row exists first
+        check = (
+            supabase.table("woodtableguy_products")
+            .select("id")
+            .eq("id", product_id)
+            .execute()
+        )
+        if not check.data:
+            log.error(f"  ✗ Product ID not found in DB: [{product_id}]")
+            return False
+
+        result = (
+            supabase.table("woodtableguy_products")
+            .update({**changes, "updated_at": utc_now()})
+            .eq("id", product_id)
+            .execute()
+        )
+
+        if not result.data:
+            log.warning(f"  ⚠ Update executed but no rows changed [{product_id}]")
+            return False
         return True
     except Exception as e:
-        log.error(f"  ✗ Failed to update woodtableguy_products [{product_id}]: {e}")
+        log.error(f"  ✗ Failed: {e}")
         return False
 
 

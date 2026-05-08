@@ -10,7 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from dotenv import load_dotenv
 from supabase import Client, create_client
-from wtg.scripts.paths import get_data_path, LOGS_DIR as SHARED_LOGS_DIR
+from wtg.scripts.paths import LOGS_DIR as SHARED_LOGS_DIR
+from wtg.scripts.paths import get_data_path
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,71 @@ logging.basicConfig(
     ],
 )
 log = logging.getLogger(__name__)
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+
+def insert_woodtableguy_product(row: dict) -> tuple[bool, str | None]:
+    """
+    Upserts a row into woodtableguy_products.
+    Returns (success, product_id or None).
+    """
+    slug = row.get("slug", "unknown")
+    try:
+        result = (
+            supabase.table("woodtableguy_products")
+            .upsert(row, on_conflict="slug")
+            .execute()
+        )
+        if not result.data:
+            log.error(
+                f"  ✗ Upsert returned no data for woodtableguy_products [{slug}] — row may not have been written"
+            )
+            return False, None
+
+        product_id = result.data[0].get("id")
+        if not product_id:
+            log.error(f"  ✗ No product_id returned after upsert [{slug}]")
+            return False, None
+
+        log.info(f"  ✓ Inserted woodtableguy_products: {slug}")
+        log.info(f"  ↳ product_id: {product_id}")
+
+        # Warn if image URLs are empty — catches key mismatch bugs early
+        if not row.get("product_image_urls"):
+            log.warning(f"  ⚠ [{slug}] product_image_urls is empty — check JSON key")
+
+        return True, product_id
+
+    except Exception as e:
+        log.error(f"  ✗ Exception inserting woodtableguy_products [{slug}]: {e}")
+        return False, None
+
+
+def insert_woodtableguy_product_data(row: dict, slug: str) -> bool:
+    """
+    Upserts a row into woodtableguy_product_data.
+    Returns True if successful.
+    """
+    try:
+        result = (
+            supabase.table("woodtableguy_product_data")
+            .upsert(row, on_conflict="product_id")
+            .execute()
+        )
+        if not result.data:
+            log.error(
+                f"  ✗ Upsert returned no data for woodtableguy_product_data [{slug}] — row may not have been written"
+            )
+            return False
+
+        log.info(f"  ✓ Inserted woodtableguy_product_data: {slug}")
+        return True
+
+    except Exception as e:
+        log.error(f"  ✗ Exception inserting woodtableguy_product_data [{slug}]: {e}")
+        return False
 
 
 # ── Upload ─────────────────────────────────────────────────────────────────────
@@ -90,82 +156,53 @@ def upload_to_supabase():
     for product in products:
         slug = product.get("slug", "unknown")
 
-        try:
-            # ── Step 1: Insert into fashionbroda_products ──────────
-            # Map JSON keys to exact DB column names:
-            #   product_image_url  (JSON) → product_image_urls  (DB)
-            #   size_chart_url     (JSON) → size_chart_image_urls (DB)
-            woodtableguy_products_row = {
-                "seller_id": SELLER_ID,
-                "brands": product.get("brand"),
-                "slug": slug,
-                "is_active": True,
-                "is_deleted": False,
-                "yupoo_album_url": product.get("yupoo_album_url"),
-                "product_cover_image": product.get("product_cover_image"),
-                "product_image_urls": product.get("product_image_url") or [],
-            }
+        # ── Step 1: Insert into woodtableguy_products ──────────────
+        woodtableguy_products_row = {
+            "seller_id": SELLER_ID,
+            "brands": product.get("brand"),
+            "slug": slug,
+            "is_active": True,
+            "is_deleted": False,
+            "yupoo_album_url": product.get("yupoo_album_url"),
+            "product_cover_image": product.get("product_cover_image"),
+            "product_image_urls": product.get("product_image_urls") or [],
+        }
 
-            # Upsert on slug — DB unique constraint prevents duplicates on re-run
-            woodtableguy_products_response = (
-                supabase.table("woodtableguy_products")
-                .upsert(woodtableguy_products_row, on_conflict="slug")
-                .execute()
-            )
+        ok, product_id = insert_woodtableguy_product(woodtableguy_products_row)
+        if not ok:
+            woodtableguy_products_failed += 1
+            continue
 
-            if not woodtableguy_products_response.data:
-                log.error(f"  ✗ Failed to insert woodtableguy_products: {slug}")
-                woodtableguy_products_failed += 1
-                continue
+        woodtableguy_products_success += 1
 
-            log.info(f"  ✓ Inserted woodtableguy_products: {slug}")
-            woodtableguy_products_success += 1
+        # ── Step 2: Insert into woodtableguy_product_data ──────────
+        raw_pd = product.get("product_data") or {}
+        woodtableguy_product_data_row = {
+            "product_id": product_id,
+            "price": raw_pd.get("price"),
+            "product_title": raw_pd.get("product_title"),
+            "sizes": raw_pd.get("sizes"),
+        }
 
-            # Get the autogenerated product id from the insert response
-            # to link the product_data row back to it
-            product_id = woodtableguy_products_response.data[0].get("id")
-            log.info(f"  ↳ product_id: {product_id}")
-
-            # ── Step 2: Insert into product_data ──────────────────
-            # Only extract core DB columns — weidian, weight, craft,
-            # construction, note etc. are intentionally excluded
-            raw_pd = product.get("product_data") or {}
-            woodtableguy_product_data_row = {
-                "product_id": product_id,
-                "price": raw_pd.get("price"),
-                "product_title": raw_pd.get("product_title"),
-                "sizes": raw_pd.get("sizes"),
-            }
-
-            woodtableguy_product_data_response = (
-                supabase.table("woodtableguy_product_data")
-                .upsert(woodtableguy_product_data_row, on_conflict="product_id")
-                .execute()
-            )
-
-            if not woodtableguy_product_data_response.data:
-                log.error(f"  ✗ Failed to insert woodtableguy_product_data: {slug}")
-                woodtableguy_product_data_failed += 1
-                continue
-
-            log.info(f"  ✓ Inserted woodtableguy_product_data: {slug}")
-            woodtableguy_product_data_success += 1
-
-        except Exception as e:
-            log.error(f"  ✗ Exception for {slug}: {e}")
+        ok = insert_woodtableguy_product_data(woodtableguy_product_data_row, slug)
+        if not ok:
             woodtableguy_product_data_failed += 1
             continue
+
+        woodtableguy_product_data_success += 1
 
     # ── Summary ────────────────────────────────────────────────────
     log.info(f"\n{'=' * 60}")
     log.info("Upload complete")
-    log.info(f"  ✓ woodtableguy_products inserted: {woodtableguy_products_success}")
     log.info(
-        f"  ✓ woodtableguy_product_data inserted:          {woodtableguy_product_data_success}"
+        f"  ✓ woodtableguy_products inserted:      {woodtableguy_products_success}"
     )
-    log.info(f"  ✗ woodtableguy_products failed:   {woodtableguy_products_failed}")
     log.info(
-        f"  ✗ woodtableguy_product_data failed:            {woodtableguy_product_data_failed}"
+        f"  ✓ woodtableguy_product_data inserted:  {woodtableguy_product_data_success}"
+    )
+    log.info(f"  ✗ woodtableguy_products failed:        {woodtableguy_products_failed}")
+    log.info(
+        f"  ✗ woodtableguy_product_data failed:    {woodtableguy_product_data_failed}"
     )
     log.info(f"Log saved to: {log_filepath}")
     log.info("=" * 60)
