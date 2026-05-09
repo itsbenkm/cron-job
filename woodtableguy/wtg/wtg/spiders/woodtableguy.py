@@ -11,8 +11,8 @@ from typing import Optional
 
 import scrapy
 
-from wtg.scripts.read_db import read_db
 from wtg.scripts.paths import get_data_path
+from wtg.scripts.read_db import read_db
 
 # *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -78,6 +78,14 @@ def normalize_fullwidth(text: str) -> str:
 
 
 # *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+def fallback_slug(category: str, album_url: str) -> str:
+    """Last resort slug: brand + album hash. Never returns None."""
+    # brand = normalize_fullwidth(category)
+    album_hash = album_hash_from_url(album_url)
+    return f"{category}-{album_hash}"
+
+
+# *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 def album_hash_from_url(album_url: str) -> str:
@@ -85,13 +93,17 @@ def album_hash_from_url(album_url: str) -> str:
     return hashlib.sha1(album_url.encode("utf-8")).hexdigest()[:10]
 
 
-def generate_slug(category: str, album_url: str) -> str:
+def generate_slug(category: str, album_url: str, header: Optional[str] = None) -> str:
     brand = normalize_fullwidth(category)
     if not brand:
         raise ValueError("Missing category")
     if not album_url:
         raise ValueError("Missing album_url")
-    return f"{brand}-{album_hash_from_url(album_url)}"
+
+    if header and len(header) >= 2:
+        return f"{brand}-{header}"
+
+    return fallback_slug(brand, album_url)
 
 
 # *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -127,7 +139,9 @@ class WoodtableguySpider(scrapy.Spider):
                 callback=self.parse_album,
                 meta={
                     "product_id": product["id"],
-                    "brand": product["brands"],  # note: singular key "brand" for clarity
+                    "brand": product[
+                        "brands"
+                    ],  # note: singular key "brand" for clarity
                     "yupoo_album_url": product["yupoo_album_url"],
                 },
                 dont_filter=True,  # Ensure every product ID gets its data updated even if they share URLs
@@ -180,8 +194,8 @@ class WoodtableguySpider(scrapy.Spider):
             header = re.sub(r"[#~＆&|【】「」『』（）()\-]+", " ", header)
             header = " ".join(header.split()).strip()
 
-        # 3. Generate Slug (with fallback to brand + price)
-        slug = generate_slug(header, yupoo_album_url)
+        # 3. Generate Slug (with fallback to brand + album hash)
+        slug = generate_slug(brand, yupoo_album_url, header)
 
         # 4. Extract Sizes
         texts = response.css(
