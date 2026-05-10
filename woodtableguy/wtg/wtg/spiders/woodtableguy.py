@@ -78,32 +78,35 @@ def normalize_fullwidth(text: str) -> str:
 
 
 # *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-def fallback_slug(category: str, album_url: str) -> str:
+def fallback_slug(brand: str, yupoo_album_url: str) -> str:
     """Last resort slug: brand + album hash. Never returns None."""
-    # brand = normalize_fullwidth(category)
-    album_hash = album_hash_from_url(album_url)
-    return f"{category}-{album_hash}"
+    # brand = normalize_fullwidth(brand)
+    album_hash = album_hash_from_url(yupoo_album_url)
+    return f"{brand}-{album_hash}"
 
 
 # *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-def album_hash_from_url(album_url: str) -> str:
+def album_hash_from_url(yupoo_album_url: str) -> str:
     # keep hash format consistent with existing pipeline
-    return hashlib.sha1(album_url.encode("utf-8")).hexdigest()[:10]
+    return hashlib.sha1(yupoo_album_url.encode("utf-8")).hexdigest()[:10]
 
 
-def generate_slug(category: str, album_url: str, header: Optional[str] = None) -> str:
-    brand = normalize_fullwidth(category)
+def generate_slug(
+    brand: str, yupoo_album_url: str, header: Optional[str] = None
+) -> str:
     if not brand:
-        raise ValueError("Missing category")
-    if not album_url:
-        raise ValueError("Missing album_url")
+        raise ValueError("Missing brand")
+    if not yupoo_album_url:
+        raise ValueError("Missing yupoo_album_url")
+
+    album_hash = album_hash_from_url(yupoo_album_url)
 
     if header and len(header) >= 2:
-        return f"{brand}-{header}"
+        return f"{header}-{album_hash}"
 
-    return fallback_slug(brand, album_url)
+    return fallback_slug(brand, yupoo_album_url)
 
 
 # *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
