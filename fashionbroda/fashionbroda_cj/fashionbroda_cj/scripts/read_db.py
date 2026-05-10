@@ -147,7 +147,6 @@ def album_urls():
             )
             .eq("is_active", True)
             .eq("is_deleted", False)
-            .neq("brands", "Brands")
             .range(start, end)
             .execute()
         )
