@@ -3,12 +3,12 @@
 """
 WTG R2 Image Migrator
 ---------------------
-- Reads album_data.json
+- Reads new_album_data.json
 - For each product, checks R2 via Worker if images exist and are JPEG
 - Downloads missing images from Yupoo (with referer header)
 - Converts all images to JPEG
 - Uploads to R2 via Worker
-- Outputs album_data_updated_cdn.json with wtg888.reps.cheap URLs
+- Outputs new_album_data_updated_cdn.json with wtg888.reps.cheap URLs
 """
 
 import argparse

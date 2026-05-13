@@ -266,13 +266,13 @@ class DiscoverSpider(scrapy.Spider):
         slug = response.meta.get("slug") or generate_slug(brand, response.url)
 
         for item in WoodtableguySpider.parse_album(self, response):
-            # Rebuild item with slug injected right after brands.
+            # Rebuild item with slug injected right after brand.
             # Final field order:
-            # product_id → brands → slug → yupoo_album_url → product_cover_image
-            # → product_image_url → size_chart_url → product_data
+            # id → brand → slug → yupoo_album_url → product_cover_image
+            # → product_image_urls → product_data
             ordered_item = {}
             for key, value in item.items():
                 ordered_item[key] = value
-                if key == "brands":
+                if key == "brand":
                     ordered_item["slug"] = slug
             yield ordered_item
