@@ -154,6 +154,22 @@ class DiscoverSpider(scrapy.Spider):
         for full_album_url, brand in self.discovered_albums:
             slug = generate_slug(brand, full_album_url)
 
+
+        for full_album_url, brand in self.discovered_albums:
+            slug = generate_slug(brand, full_album_url)
+
+        for full_album_url, brand in self.discovered_albums:
+            slug = generate_slug(brand, full_album_url)
+
+            # Skip if slug already exists in the DB.
+            if slug in self.db_slugs:
+                skipped_count += 1
+                continue
+
+            # Skip if slug already exists in the DB.
+            if slug in self.db_slugs:
+                skipped_count += 1
+                continue
             # Skip if slug already exists in the DB.
             if slug in self.db_slugs:
                 skipped_count += 1

@@ -6,15 +6,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import scrapy
 
-from wtg.scripts.read_db import album_urls
-from wtg.spiders.woodtableguy import WoodtableguySpider, generate_slug
 from wtg.scripts.paths import get_data_path
+from wtg.scripts.read_db import album_urls
+from wtg.spiders.woodtableguy import WoodtableguySpider
 
 
 class DiscoverSpider(scrapy.Spider):
     name = "discover"
     allowed_domains = ["woodtableguy888.x.yupoo.com"]
     # start_urls = ["https://woodtableguy888.x.yupoo.com/categories"]
+
+    # Class-level defaults so `closed()` can always read them, even if
+    # start_requests() raises before reaching its own re-initialization
+    # (e.g. a Supabase 401 from album_urls()). Integers are immutable so
+    # this class-level default is safe — `self.x += 1` shadows it with
+    # an instance attribute on first increment.
+    parse_new_count = 0
+    parse_skipped_count = 0
 
     custom_settings = {
         "CONCURRENT_REQUESTS": 10,
@@ -149,6 +157,12 @@ class DiscoverSpider(scrapy.Spider):
         # know when collection is complete and comparison can begin.
         self.pending_category_pages = 0
 
+        # Per-spider counters for the post-scrape slug comparison in parse_album.
+        # Lifted to instance attributes so they survive across requests and can
+        # be summarised once the spider closes.
+        self.parse_new_count = 0
+        self.parse_skipped_count = 0
+
         for category_url, brand in self.categories.items():
             self.pending_category_pages += 1
             yield scrapy.Request(
@@ -204,75 +218,81 @@ class DiscoverSpider(scrapy.Spider):
 
     def compare_and_scrape(self):
         """
-        Step 3 — Compare every discovered album's slug against the DB slugs.
-        Go through the full discovered list from first to last:
-          - Generate the slug for each album URL
-          - If the slug matches one in the DB → skip it
-          - If the slug is new → schedule it for scraping
-        This runs entirely in memory after all URLs are collected,
-        so there is no async race condition with partially loaded data.
+        Step 3 — Schedule a scrapy.Request for every discovered album URL.
+
+        Slug comparison happens in parse_album, AFTER the album page is
+        fetched, because only then is the header available to produce a
+        slug in the same dialect the DB stores (header-form). Comparing
+        at this stage would force the fallback dialect (brand+hash) and
+        mismatch every existing row.
+
+        Dedup here is on URL — an album can appear under multiple
+        categories, and we only want to fetch it once.
         """
-        new_count = 0
-        skipped_count = 0
-        # Dedup within the discovered list itself in case the same album
-        # appears under multiple categories.
-        seen_slugs = set()
+        seen_urls = set()
+        scheduled_count = 0
 
         for full_album_url, brand in self.discovered_albums:
-            slug = generate_slug(brand, full_album_url)
-
-            # Skip if slug already exists in the DB.
-            if slug in self.db_slugs:
-                skipped_count += 1
+            if full_album_url in seen_urls:
                 continue
+            seen_urls.add(full_album_url)
+            scheduled_count += 1
 
-            # Skip if we already queued this slug from another category.
-            if slug in seen_slugs:
-                continue
-
-            seen_slugs.add(slug)
-            new_count += 1
-
-            self.logger.info(f"[DISCOVER] New album: {slug} → {full_album_url}")
-
-            # Schedule the album page for scraping, passing brand and slug.
             yield scrapy.Request(
                 full_album_url,
                 callback=self.parse_album,
                 meta={
                     "brand": brand,
                     "yupoo_album_url": full_album_url,
-                    "slug": slug,
                     "product_id": None,
                 },
             )
 
         self.logger.info(
-            f"[DISCOVER] Comparison done. "
-            f"New: {new_count} | Skipped (in DB): {skipped_count}"
+            f"[DISCOVER] Scheduled {scheduled_count} unique album URLs for fetching. "
+            f"Slug comparison will run per-album in parse_album."
         )
 
     def parse_album(self, response):
         """
-        Step 4 — Scrape the album page and yield the product item.
-        Only albums that passed the slug comparison in Step 3 reach here.
-        Reuses FashionbrodaSpider.parse_album() for field extraction and
-        injects the slug into the output immediately after the brands field.
+        Step 4 — Scrape the album page, then run the slug comparison.
+
+        Reuses WoodtableguySpider.parse_album for the actual field
+        extraction. That call produces an item whose `slug` field is
+        already in the correct header-form dialect (because the header
+        is now available from the fetched page). We then check that
+        slug against self.db_slugs:
+          - already in DB → drop the item (don't yield)
+          - not in DB    → yield it as-is (no rebuilding, no override)
 
         Note: 404s on some album URLs are expected — Yupoo category pages
         can contain stale links to deleted albums. These are harmless.
         """
-        brand = response.meta.get("brand") or response.meta.get("brands")
-        slug = response.meta.get("slug") or generate_slug(brand, response.url)
-
         for item in WoodtableguySpider.parse_album(self, response):
-            # Rebuild item with slug injected right after brand.
-            # Final field order:
-            # id → brand → slug → yupoo_album_url → product_cover_image
-            # → product_image_urls → product_data
-            ordered_item = {}
-            for key, value in item.items():
-                ordered_item[key] = value
-                if key == "brand":
-                    ordered_item["slug"] = slug
-            yield ordered_item
+            slug = item.get("slug")
+
+            if not slug:
+                # Defensive: parse_album should always inject a slug, but
+                # if something upstream regresses we don't want to silently
+                # write a sluggy-null row to new_album_data.json.
+                self.logger.warning(
+                    f"[DISCOVER] Item from {response.url} has no slug — dropping"
+                )
+                continue
+
+            if slug in self.db_slugs:
+                self.parse_skipped_count += 1
+                self.logger.info(f"[DISCOVER] Already in DB: {slug} — skipping")
+                continue
+
+            self.parse_new_count += 1
+            self.logger.info(f"[DISCOVER] New album: {slug} → {response.url}")
+            yield item
+
+    def closed(self, reason):
+        """Final summary once the spider finishes (success or not)."""
+        self.logger.info(
+            f"[DISCOVER] Spider closed ({reason}). "
+            f"New: {self.parse_new_count} | "
+            f"Skipped (in DB): {self.parse_skipped_count}"
+        )
