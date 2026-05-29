@@ -25,8 +25,22 @@ class DiscoverSpider(scrapy.Spider):
     parse_skipped_count = 0
 
     custom_settings = {
-        "CONCURRENT_REQUESTS": 10,
-        "DOWNLOAD_DELAY": 0.2,
+        # Most of the spider's time is HTTP-bound on Yupoo (one request per
+        # discovered album in parse_album). Per-domain concurrency is what
+        # actually limits throughput — global CONCURRENT_REQUESTS without
+        # raising per-domain leaves us serialised against yupoo.com.
+        "CONCURRENT_REQUESTS": 25,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 25,
+        # Short fixed delay; autothrottle below adjusts dynamically if
+        # Yupoo starts throwing errors or slowing down.
+        "DOWNLOAD_DELAY": 0.05,
+        "RANDOMIZE_DOWNLOAD_DELAY": True,
+        # Safety net: if Yupoo pushes back (5xx, slow responses), scrapy
+        # widens the delay automatically. Starts conservative, scales up.
+        "AUTOTHROTTLE_ENABLED": True,
+        "AUTOTHROTTLE_START_DELAY": 0.1,
+        "AUTOTHROTTLE_MAX_DELAY": 5.0,
+        "AUTOTHROTTLE_TARGET_CONCURRENCY": 16.0,
         "FEEDS": {
             get_data_path("new_album_data.json"): {
                 "format": "json",
