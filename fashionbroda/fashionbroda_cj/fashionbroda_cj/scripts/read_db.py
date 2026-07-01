@@ -164,6 +164,38 @@ def album_urls():
 
 # *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+def read_deleted_products():
+    batch_size = 1000
+    start = 0
+    all_rows = []
+
+    while True:
+        end = start + batch_size - 1
+        data = (
+            supabase.table("fashionbroda_products")
+            .select(
+                """
+                id,
+                product_image_urls,
+                product_cover_image,
+                size_chart_image_urls
+                """
+            )
+            .eq("is_deleted", True)
+            .eq("is_active", False)
+            .range(start, end)
+            .execute()
+        )
+        if not data.data:
+            break
+        all_rows.extend(data.data)
+        print(f"Fetched deleted rows {start} to {end} -> {len(data.data)} rows")
+        start += batch_size
+
+    return {row["id"]: row for row in all_rows}
+
+
 if __name__ == "__main__":
     read_db()
     read_clean_db()
