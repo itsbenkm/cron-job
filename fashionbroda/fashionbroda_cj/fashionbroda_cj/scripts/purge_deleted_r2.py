@@ -28,7 +28,6 @@ import requests
 from dotenv import load_dotenv
 
 from fashionbroda_cj.scripts.paths import LOGS_DIR
-from fashionbroda_cj.scripts.read_db import read_deleted_products
 
 WORKER_BASE_URL = "https://fbd.imageuploads.workers.dev"
 CDN_BASE_URL = "https://cdn.reps.cheap"
@@ -121,6 +120,8 @@ def main():
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler(Path(LOGS_DIR) / "purge_deleted_r2.log")],
     )
+
+    from fashionbroda_cj.scripts.read_db import read_deleted_products
 
     rows = list(read_deleted_products().values())
     if args.limit:
