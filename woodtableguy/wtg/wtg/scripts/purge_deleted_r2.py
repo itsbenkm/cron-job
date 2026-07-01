@@ -70,6 +70,7 @@ def worker_head_exists(key: str, headers: dict) -> bool:
             if r.status_code == 404:
                 return False
             log.warning(f"HEAD {key} got {r.status_code}")
+            time.sleep(RETRY_DELAY)
         except Exception as e:
             log.warning(f"HEAD {key} attempt {attempt + 1} failed: {e}")
             time.sleep(RETRY_DELAY)
@@ -144,6 +145,8 @@ def main():
 
     deleted = worker_delete_keys(present, headers)
     log.info(f"Deleted {deleted} objects from R2")
+    if present and deleted != len(present):
+        log.warning(f"Expected to delete {len(present)} objects but Worker reported {deleted} — some deletes failed (is the Worker deployed with POST /delete-keys?)")
 
 
 if __name__ == "__main__":
