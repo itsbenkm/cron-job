@@ -98,6 +98,11 @@ jobs:
         if: steps.check_new_albums.outputs.new_albums == 'true'
         run: python3 fashionbroda/fashionbroda_cj/fashionbroda_cj/scripts/supabase_upload_new_data.py
 
+      # ── Part 3 — Reclaim R2 storage for deleted products ────────────────────
+
+      - name: Purge deleted albums' images from R2
+        run: python3 fashionbroda/fashionbroda_cj/fashionbroda_cj/scripts/purge_deleted_r2.py
+
       # ── Notify on failure ───────────────────────────────────────────────────
 
       - name: Pipeline failed
