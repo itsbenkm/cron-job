@@ -32,59 +32,6 @@ export default {
 			return new Response('Missing R2 key in path', { status: 400 });
 		}
 
-		// ── CLEANUP — one-time delete of ALL objects in the bucket ──
-		// Hit: DELETE /cleanup-delete-all
-		// Once done, remove this block and redeploy.
-		if (request.method === 'DELETE' && r2Key === 'cleanup-delete-all') {
-			const { readable, writable } = new TransformStream();
-			const writer = writable.getWriter();
-			const enc = new TextEncoder();
-
-			const write = async (line: string) => {
-				await writer.write(enc.encode(line + '\n'));
-			};
-
-			(async () => {
-				try {
-					let totalDeleted = 0;
-					let cursor: string | undefined = undefined;
-
-					await write('[start] scanning entire bucket...');
-
-					do {
-						const listed = await env.wtg.list({ cursor });
-
-						const toDelete = listed.objects.map((o) => o.key);
-
-						if (toDelete.length > 0) {
-							await env.wtg.delete(toDelete);
-							for (const k of toDelete) {
-								await write(`[deleted] ${k}`);
-							}
-							totalDeleted += toDelete.length;
-						}
-
-						cursor = listed.truncated ? listed.cursor : undefined;
-
-						if (cursor) {
-							await write(`[paging] fetching next page...`);
-						}
-					} while (cursor);
-
-					await write(`[done] total deleted: ${totalDeleted}`);
-				} catch (err: any) {
-					await write(`[error] ${err?.message ?? String(err)}`);
-				} finally {
-					await writer.close();
-				}
-			})();
-
-			return new Response(readable, {
-				status: 200,
-				headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-			});
-		}
-
 		// ── HEAD — check if object exists and return its content-type ────────────
 		if (request.method === 'HEAD') {
 			const object = await env.wtg.head(r2Key);
@@ -115,6 +62,32 @@ export default {
 
 			return new Response(JSON.stringify({ ok: true, key: r2Key }), {
 				status: 201,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}
+
+		// ── POST /delete-keys — batch delete R2 objects by exact key ──
+		if (request.method === 'POST' && r2Key === 'delete-keys') {
+			let parsed: { keys?: unknown };
+			try {
+				parsed = await request.json();
+			} catch {
+				return new Response('Invalid JSON body', { status: 400 });
+			}
+			const keys = parsed?.keys;
+			if (!Array.isArray(keys) || keys.length === 0 || !keys.every((k) => typeof k === 'string')) {
+				return new Response('Body must be { keys: string[] } with at least one key', { status: 400 });
+			}
+
+			let deleted = 0;
+			for (let i = 0; i < keys.length; i += 1000) {
+				const chunk = keys.slice(i, i + 1000) as string[];
+				await env.wtg.delete(chunk);
+				deleted += chunk.length;
+			}
+
+			return new Response(JSON.stringify({ deleted }), {
+				status: 200,
 				headers: { 'Content-Type': 'application/json' },
 			});
 		}
