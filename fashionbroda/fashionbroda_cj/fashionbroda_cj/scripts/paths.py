@@ -1,4 +1,4 @@
-import os
+# import os
 from pathlib import Path
 
 # This script is located at:
@@ -15,13 +15,16 @@ LOGS_DIR = REPO_ROOT / "fashionbroda" / "fashionbroda_cj" / "fashionbroda_cj" / 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
+
 def get_data_path(filename: str) -> str:
     """Returns the absolute path to a file in the standardized data directory."""
     return str(DATA_DIR / filename)
 
+
 def get_log_path(filename: str) -> str:
     """Returns the absolute path to a file in the standardized logs directory."""
     return str(LOGS_DIR / filename)
+
 
 def get_repo_relative_path(path: str) -> str:
     """Returns the absolute path to a repo-relative path string."""

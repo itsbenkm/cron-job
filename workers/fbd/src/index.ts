@@ -47,6 +47,21 @@ export default {
 			});
 		}
 
+		// ── GET /list-keys — paginate all object keys in the bucket ──
+		if (request.method === 'GET' && key === 'list-keys') {
+			const cursor = url.searchParams.get('cursor') ?? undefined;
+			const limit = Math.min(Number(url.searchParams.get('limit')) || 1000, 1000);
+			const listed = await env.fbd.list({ cursor, limit });
+			return new Response(
+				JSON.stringify({
+					keys: listed.objects.map((o) => o.key),
+					cursor: listed.truncated ? listed.cursor : null,
+					truncated: listed.truncated,
+				}),
+				{ status: 200, headers: { 'Content-Type': 'application/json' } },
+			);
+		}
+
 		// ── GET ───────────────────────────────────────────────────────
 		if (request.method === 'GET') {
 			const obj = await env.fbd.get(key);
