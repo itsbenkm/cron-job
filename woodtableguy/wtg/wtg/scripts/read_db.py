@@ -190,6 +190,44 @@ def read_deleted_products():
 
 # *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+def read_active_products():
+    """All active, non-deleted products with their image columns — NO brand filter.
+
+    The orphan sweep builds its KEEP set from this, so it must include every active
+    product regardless of brand. (wtg's read_clean_db already has no brand filter,
+    but the sweep uses this dedicated function for parity with fashionbroda.)
+    """
+    batch_size = 1000
+    start = 0
+    all_rows = []
+
+    while True:
+        end = start + batch_size - 1
+        data = (
+            supabase.table("woodtableguy_products")
+            .select(
+                """
+                id,
+                product_image_urls,
+                product_cover_image
+                """
+            )
+            .eq("is_active", True)
+            .eq("is_deleted", False)
+            .range(start, end)
+            .execute()
+        )
+        if not data.data:
+            break
+        all_rows.extend(data.data)
+        print(f"Fetched active rows {start} to {end} -> {len(data.data)} rows")
+        start += batch_size
+
+    return {row["id"]: row for row in all_rows}
+
+
+# *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 if __name__ == "__main__":
     read_db()
     read_clean_db()

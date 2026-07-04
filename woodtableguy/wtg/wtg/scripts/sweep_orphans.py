@@ -130,12 +130,12 @@ def main():
         ],
     )
 
-    from wtg.scripts.read_db import read_clean_db
+    from wtg.scripts.read_db import read_active_products
 
-    # ── KEEP: keys referenced by active products ──
+    # ── KEEP: keys referenced by active products (NO brand filter) ──
     log.info("Building KEEP set from active products ...")
     keep: set[str] = set()
-    for row in read_clean_db().values():
+    for row in read_active_products().values():
         keep.update(collect_keys(row, CDN_BASE_URL))
     log.info(f"KEEP: {len(keep)} keys referenced by active products")
 
